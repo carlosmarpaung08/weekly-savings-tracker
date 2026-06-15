@@ -74,6 +74,10 @@ export async function updateWeekAmount(week_id, amount, token) {
   return postRequest({ action: "updateWeekAmount", week_id, amount }, token);
 }
 
+export async function deleteWeek(week_id, token) {
+  return postRequest({ action: "deleteWeek", week_id }, token);
+}
+
 // ============================================================
 // PAYMENTS
 // ============================================================
