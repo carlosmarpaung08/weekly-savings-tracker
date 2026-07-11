@@ -1,10 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { formatRupiah, formatDate } from "../../utils/helpers";
+import { formatRupiah } from "../../utils/helpers";
 
 export default function WeekCard({ week }) {
   const navigate = useNavigate();
   const total    = week.paid_count + week.unpaid_count;
   const pct      = total > 0 ? Math.round((week.paid_count / total) * 100) : 0;
+
 
   return (
     <div
@@ -25,7 +26,16 @@ export default function WeekCard({ week }) {
           )}
         </div>
         <p className="week-history-amount">{formatRupiah(week.amount)} / orang</p>
-        <p className="week-history-date">{formatDate(week.created_at)}</p>
+        {week.week_date && (
+          <p className="week-history-date">
+            📅 {new Date(week.week_date).toLocaleDateString("id-ID", {
+              weekday: "long",
+              day:     "numeric",
+              month:   "long",
+              year:    "numeric",
+            })}
+          </p>
+        )}
 
         {/* Mini progress */}
         <div style={{ marginTop: 10, maxWidth: 200 }}>

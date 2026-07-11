@@ -31,6 +31,19 @@ export default function ActiveWeekCard({ week }) {
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 4 }}>
             Nominal iuran: <span style={{ color: "var(--accent-bright)", fontWeight: 600 }}>{formatRupiah(week.amount)}</span>
           </p>
+          {week.week_date && (
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
+              📅{" "}
+              <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
+                {new Date(week.week_date).toLocaleDateString("id-ID", {
+                  weekday: "long",
+                  day:     "numeric",
+                  month:   "long",
+                  year:    "numeric",
+                })}
+              </span>
+            </p>
+          )}
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontSize: "1.3rem", fontWeight: 800, color: "var(--success)", letterSpacing: "-0.03em", lineHeight: 1 }}>

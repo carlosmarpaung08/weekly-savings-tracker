@@ -1,7 +1,7 @@
 import { useNavigate }        from "react-router-dom";
 import { useState }           from "react";
 import { useApi }             from "../hooks/useApi";
-import { getDashboard, createWeek, updateWeekAmount } from "../api/index";
+import { getDashboard, createWeek, updateWeekAmount, updateWeekDate } from "../api/index";
 import { useAuth }            from "../context/AuthContext";
 import { formatRupiah }       from "../utils/helpers";
 import LoadingSpinner         from "../components/ui/LoadingSpinner";
@@ -13,6 +13,21 @@ import MemberTable            from "../components/admin/MemberTable";
 import WeekForm               from "../components/admin/WeekForm";
 import Modal                  from "../components/ui/Modal";
 import Button                 from "../components/ui/Button";
+
+// ── Helpers ──────────────────────────────────────────────────
+/**
+ * Format YYYY-MM-DD ke tampilan "Sabtu, 13 Juni 2026"
+ */
+function formatWeekDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("id-ID", {
+    weekday: "long",
+    day:     "numeric",
+    month:   "long",
+    year:    "numeric",
+  });
+}
 
 export default function AdminPage() {
   const { isAdmin, token } = useAuth();
@@ -34,10 +49,14 @@ export default function AdminPage() {
 
   const week = data.active_week;
 
-  async function handleCreateWeek(amount) {
+  // week_date minggu aktif saat ini (untuk auto-suggest minggu berikutnya)
+  const lastWeekDate = week?.week_date || null;
+
+  // ── Handlers ─────────────────────────────────────────────
+  async function handleCreateWeek(amount, weekDate) {
     setFormLoading(true);
     setFormError("");
-    const res = await createWeek(amount, token);
+    const res = await createWeek(amount, weekDate, token);
     if (res.success) { refetch(); setModal(null); }
     else setFormError(res.error);
     setFormLoading(false);
@@ -47,6 +66,15 @@ export default function AdminPage() {
     setFormLoading(true);
     setFormError("");
     const res = await updateWeekAmount(week.week_id, amount, token);
+    if (res.success) { refetch(); setModal(null); }
+    else setFormError(res.error);
+    setFormLoading(false);
+  }
+
+  async function handleEditDate(_, weekDate) {
+    setFormLoading(true);
+    setFormError("");
+    const res = await updateWeekDate(week.week_id, weekDate, token);
     if (res.success) { refetch(); setModal(null); }
     else setFormError(res.error);
     setFormLoading(false);
@@ -90,20 +118,42 @@ export default function AdminPage() {
                 {week ? `Minggu ${week.week_number}` : "Belum Ada Minggu Aktif"}
               </h2>
               {week && (
-                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginTop: 4 }}>
-                  Nominal iuran: <span style={{ color: "var(--accent-bright)", fontWeight: 600 }}>{formatRupiah(week.amount)}</span>
-                </p>
+                <div style={{ marginTop: 4 }}>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                    Nominal iuran:{" "}
+                    <span style={{ color: "var(--accent-bright)", fontWeight: 600 }}>
+                      {formatRupiah(week.amount)}
+                    </span>
+                  </p>
+                  {week.week_date && (
+                    <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: 2 }}>
+                      📅{" "}
+                      <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
+                        {formatWeekDate(week.week_date)}
+                      </span>
+                    </p>
+                  )}
+                </div>
               )}
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
               {week && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setFormError(""); setModal("editAmount"); }}
-                >
-                  Edit Nominal
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setFormError(""); setModal("editDate"); }}
+                  >
+                    📅 Edit Tanggal
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setFormError(""); setModal("editAmount"); }}
+                  >
+                    Edit Nominal
+                  </Button>
+                </>
               )}
               <Button
                 size="sm"
@@ -180,6 +230,8 @@ export default function AdminPage() {
           {formError && <div className="login-error" style={{ marginBottom: 16 }}>{formError}</div>}
           <WeekForm
             label="Buat Minggu Baru"
+            suggestedDate={lastWeekDate}
+            showDateField={true}
             onSubmit={handleCreateWeek}
             onCancel={() => setModal(null)}
             loading={formLoading}
@@ -194,12 +246,93 @@ export default function AdminPage() {
           <WeekForm
             initial={week.amount}
             label="Simpan Perubahan"
+            showDateField={false}
             onSubmit={handleEditAmount}
             onCancel={() => setModal(null)}
             loading={formLoading}
           />
         </Modal>
       )}
+
+      {/* Modal Edit Tanggal */}
+      {modal === "editDate" && week && (
+        <Modal title="📅 Edit Tanggal Iuran" onClose={() => setModal(null)}>
+          {formError && <div className="login-error" style={{ marginBottom: 16 }}>{formError}</div>}
+          <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: 14 }}>
+            Ubah tanggal iuran untuk <strong>Minggu {week.week_number}</strong>.
+            Tanggal harus jatuh pada hari Sabtu.
+          </p>
+          <WeekFormDateOnly
+            initialDate={week.week_date || ""}
+            onSubmit={handleEditDate}
+            onCancel={() => setModal(null)}
+            loading={formLoading}
+          />
+        </Modal>
+      )}
     </>
+  );
+}
+
+// ── Komponen mini: form edit tanggal saja ────────────────────
+function isSaturday(dateStr) {
+  if (!dateStr) return false;
+  return new Date(dateStr).getDay() === 6;
+}
+
+function WeekFormDateOnly({ initialDate, onSubmit, onCancel, loading }) {
+  const [weekDate, setWeekDate] = useState(initialDate);
+  const [dateError, setDateError] = useState("");
+
+  function handleSubmit() {
+    if (!weekDate) { setDateError("Tanggal wajib diisi"); return; }
+    if (!isSaturday(weekDate)) { setDateError("Tanggal harus jatuh pada hari Sabtu"); return; }
+    setDateError("");
+    // Kirim amount=0 (akan diabaikan oleh handler handleEditDate)
+    onSubmit(0, weekDate);
+  }
+
+  return (
+    <div>
+      <div className="form-group">
+        <label className="form-label">
+          Tanggal Iuran{" "}
+          <span style={{ color: "var(--text-muted)", fontWeight: 400, fontSize: "0.78rem" }}>
+            (harus hari Sabtu)
+          </span>
+        </label>
+        <input
+          type="date"
+          value={weekDate}
+          onChange={e => { setWeekDate(e.target.value); setDateError(""); }}
+          className={`form-input${dateError ? " input-error" : ""}`}
+          autoFocus
+        />
+        {dateError && (
+          <p style={{ color: "var(--danger, #ef4444)", fontSize: "0.78rem", marginTop: 4 }}>
+            ⚠️ {dateError}
+          </p>
+        )}
+        {weekDate && !dateError && isSaturday(weekDate) && (
+          <p className="form-hint" style={{ color: "var(--success, #16a34a)" }}>
+            ✅ {new Date(weekDate).toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        )}
+        {weekDate && !isSaturday(weekDate) && (
+          <p style={{ color: "var(--warning, #f59e0b)", fontSize: "0.78rem", marginTop: 4 }}>
+            ⚠️ Bukan hari Sabtu
+          </p>
+        )}
+      </div>
+      <div className="form-actions">
+        <Button variant="ghost" onClick={onCancel} disabled={loading}>Batal</Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={loading || !weekDate || !isSaturday(weekDate)}
+        >
+          {loading ? "Menyimpan..." : "Simpan Tanggal"}
+        </Button>
+      </div>
+    </div>
   );
 }

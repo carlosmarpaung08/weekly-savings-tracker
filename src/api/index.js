@@ -66,8 +66,12 @@ export async function getWeekDetail(week_id) {
   return getRequest("getWeekDetail", { week_id });
 }
 
-export async function createWeek(amount, token) {
-  return postRequest({ action: "createWeek", amount }, token);
+export async function createWeek(amount, week_date, token) {
+  return postRequest({ action: "createWeek", amount, week_date }, token);
+}
+
+export async function updateWeekDate(week_id, week_date, token) {
+  return postRequest({ action: "updateWeekDate", week_id, week_date }, token);
 }
 
 export async function updateWeekAmount(week_id, amount, token) {

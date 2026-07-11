@@ -100,7 +100,12 @@ export default function WeekDetailPage() {
             <p className="stat-card-value" style={{ fontSize: "1.5rem" }}>
               {formatRupiah(data.amount)}
             </p>
-            <p className="stat-card-sub">{formatDate(data.created_at)}</p>
+            <p className="stat-card-sub">
+              {data.week_date
+                ? new Date(data.week_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+                : "-"
+              }
+            </p>
             <div className="stat-card-icon">💵</div>
           </div>
           <div className="card stat-card">
